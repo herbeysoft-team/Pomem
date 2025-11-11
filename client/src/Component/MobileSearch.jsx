@@ -1,7 +1,6 @@
 import { IconButton, InputBase, Paper } from "@mui/material";
 import React from "react";
 import SearchIcon from "@mui/icons-material/Search";
-import NoteAltIcon from "@mui/icons-material/NoteAlt";
 import {
   getMemosBySearch,
   getMemos,
@@ -11,7 +10,6 @@ import { useDispatch } from "react-redux";
 
 const MobileSearch = () => {
   const dispatch = useDispatch();
-
   //function called when any input  value is changed
   const onSearchChange = (e) => {
     const searchName = e.target.value;
@@ -22,10 +20,12 @@ const MobileSearch = () => {
           searchName: {
             searchName,
           },
+          page: 1,
+          limit: 24
         })
       );
     } else {
-      dispatch(getMemos());
+      dispatch(getMemos({ page: 1, limit: 24 }));
     }
   };
   return (
@@ -43,19 +43,16 @@ const MobileSearch = () => {
         flexGrow: 1,
       }}
     >
-      <IconButton sx={{ p: "10px" }}>
-        <SearchIcon />
-      </IconButton>
       <InputBase
         sx={{ ml: 1, flex: 1 }}
-        placeholder="Search Memo"
+        placeholder="Search Memo By Title or ID"
         name="searchName"
         onChange={onSearchChange}
         type="text"
         id="searchName"
       />
-      <IconButton type="submit" sx={{ p: "10px" }}>
-        <NoteAltIcon />
+      <IconButton sx={{ p: "10px" }}>
+        <SearchIcon />
       </IconButton>
     </Paper>
   );

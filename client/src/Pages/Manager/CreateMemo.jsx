@@ -136,13 +136,12 @@ const CreateMemo = () => {
       sx={{
         display: "flex",
         flexDirection: "column",
-        justifyItems: "center",
+        justifyContent: "center",
         alignItems: "center",
         marginTop: "5rem",
         marginBottom: "5rem",
         padding: { xs: "1rem", md: "2rem" },
-        marginRight: { xs: "0rem", md: "20rem" },
-        marginLeft: { xs: "0rem", md: "20rem" },
+        width: "100%", // take full width
       }}
       className="card"
     >
@@ -158,91 +157,138 @@ const CreateMemo = () => {
       <Typography component="h4" variant="h4" fontWeight="bold">
         Create Memo
       </Typography>
-
-      <Grid container spacing={{ xs: 0, md: 2 }}>
-        <Grid item xs={12} md={6}>
-          <TextField
-            sx={{ width: "100%", display: "flex", flex: 1 }}
-            id="toWho"
-            select
-            name="toWho"
-            label="To"
-            value={toWho || ""}
-            size="small"
-            margin="dense"
-            onChange={onInputChange}
-          >
-            {users?.map((item, index) => (
-              <MenuItem value={item.id} key={item.id + 300}>
-                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                  {item.dept_name} -{" "}
-                </Typography>{" "}
-                {item.firstname} {item.lastname}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            sx={{ width: "100%", display: "flex", flex: 1 }}
-            id="throughWho"
-            select
-            name="throughWho"
-            label="Through"
-            value={throughWho || ""}
-            size="small"
-            margin="dense"
-            onChange={onInputChange}
-          >
-            {users?.map((item, index) => (
-              <MenuItem value={item.id} key={item.id + 200}>
-                <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                  {item.dept_name} -{" "}
-                </Typography>{" "}
-                {item.firstname} {item.lastname}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-      </Grid>
-      <TextField
-        sx={{ width: "100%", display: "flex", flex: 1 }}
-        id="category"
-        select
-        name="category"
-        label="Category"
-        value={category || ""}
-        size="small"
-        margin="dense"
-        onChange={onInputChange}
+      <Box
+        sx={{
+          width: { xs: "100%", sm: "90%", md: "80%", lg: "70%" }, // responsive form width
+          backgroundColor: "#fff",
+          color: "#000",
+          padding: { xs: "1rem", md: "2rem" },
+          borderRadius: "12px",
+          boxShadow: "0 0 20px rgba(0,0,0,0.05)",
+        }}
       >
-        {categories?.map((item, index) => (
-          <MenuItem value={item.id} key={item.id + 100}>
-            <Typography variant="h6">{item.cat_name} </Typography>
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        sx={{ width: "100%" }}
-        id="subject"
-        label="Subject of the Memo"
-        name="subject"
-        placeholder="Subject of the Memo"
-        multiline
-        value={subject || ""}
-        rows={2}
-        size="small"
-        margin="dense"
-        onChange={onInputChange}
-      />
-      <Box sx={{ width: "100%" }}>
-        <JoditEditor
-          ref={editor}
-          value={content}
-          tabIndex={1} // tabIndex of textarea
-          onBlur={(newContent) => setContent(newContent)} // preferred to use only this option to update the content for performance reasons
-          onChange={(newContent) => {}}
+
+        <Grid container spacing={{ xs: 0, md: 2 }}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              sx={{
+                width: "100%",
+                flex: 1,
+                // Always black text and label
+                "& .MuiInputBase-input": { color: "#888 !important" },
+                "& .MuiInputLabel-root": { color: "#888 !important" },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+                "& .MuiSvgIcon-root": { color: "#888 !important" }, // dropdown arrow
+              }}
+              id="toWho"
+              select
+              name="toWho"
+              label="To"
+              value={toWho || ""}
+              size="small"
+              margin="dense"
+              onChange={onInputChange}
+            >
+              {users?.map((item, index) => (
+                <MenuItem value={item.id} key={item.id + 300}>
+                  <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                    {item.dept_name} -{" "}
+                  </Typography>{" "}
+                  {item.firstname} {item.lastname}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              sx={{
+                width: "100%",
+                flex: 1,
+                // Always black text and label
+                "& .MuiInputBase-input": { color: "#888 !important" },
+                "& .MuiInputLabel-root": { color: "#888 !important" },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+                "& .MuiSvgIcon-root": { color: "#888 !important" }, // dropdown arrow
+              }}
+              id="throughWho"
+              select
+              name="throughWho"
+              label="Through"
+              value={throughWho || ""}
+              size="small"
+              margin="dense"
+              onChange={onInputChange}
+            >
+              {users?.map((item, index) => (
+                <MenuItem value={item.id} key={item.id + 200}>
+                  <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                    {item.dept_name} -{" "}
+                  </Typography>{" "}
+                  {item.firstname} {item.lastname}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+        </Grid>
+        <TextField
+         sx={{
+          width: "100%",
+          flex: 1,
+          // Always black text and label
+          "& .MuiInputBase-input": { color: "#888 !important" },
+          "& .MuiInputLabel-root": { color: "#888 !important" },
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+          "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+          "& .MuiSvgIcon-root": { color: "#888 !important" }, // dropdown arrow
+        }}
+          id="category"
+          select
+          name="category"
+          label="Category"
+          value={category || ""}
+          size="small"
+          margin="dense"
+          onChange={onInputChange}
+        >
+          {categories?.map((item, index) => (
+            <MenuItem value={item.id} key={item.id + 100}>
+              <Typography variant="h6">{item.cat_name} </Typography>
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+         sx={{
+          width: "100%",
+          flex: 1,
+          // Always black text and label
+          "& .MuiInputBase-input": { color: "#888 !important" },
+          "& .MuiInputLabel-root": { color: "#888 !important" },
+          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+          "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+          "& .MuiSvgIcon-root": { color: "#888 !important" }, // dropdown arrow
+        }}
+          id="subject"
+          label="Subject of the Memo"
+          name="subject"
+          placeholder="Subject of the Memo"
+          multiline
+          value={subject || ""}
+          rows={2}
+          size="small"
+          margin="dense"
+          onChange={onInputChange}
         />
+        <Box sx={{ width: "100%" }}>
+          <JoditEditor
+            ref={editor}
+            value={content}
+            tabIndex={1} // tabIndex of textarea
+            onBlur={(newContent) => setContent(newContent)} // preferred to use only this option to update the content for performance reasons
+            onChange={(newContent) => { }}
+          />
+        </Box>
       </Box>
       <Button
         onClick={handleCreateMemo}

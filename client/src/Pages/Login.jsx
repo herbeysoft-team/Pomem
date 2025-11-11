@@ -56,10 +56,9 @@ export default function Login() {
     loading && setIsLoading(loading);
   }, [loading]);
 
-  useEffect(() => {
-    error && toast.error(error);
-  }, [error]);
-
+  // `useEffect(() => {
+  //   error && toast.error(error);
+  // }, [error]);`aaz
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!email || !password) {
@@ -144,6 +143,13 @@ export default function Login() {
             Sign In
           </Button>
         </Box>
+		{/* <Typography variant="h2"
+          color="#d70e05"
+          alignItems="center"
+          sx={{ fontWeight: "bold", display: "flex", alignItems: "center" }}
+		  >
+			Don't have account. <span>Register Here</span>
+		</Typography> */}
       </Box>
       <Copyright sx={{ mt: 1 }} />
     </Container>

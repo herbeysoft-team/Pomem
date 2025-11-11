@@ -17,10 +17,10 @@ const CategoryTab = ({ categories }) => {
     setValue(newValue);
     if (newValue === 0) {
       dispatch(clearMemo());
-      dispatch(getMemos());
+      dispatch(getMemos({ page: 1, limit: 24 }));
     } else {
       dispatch(clearMemo());
-      dispatch(getMemosByCategory(newValue));
+      dispatch(getMemosByCategory({id: newValue, page: 1, limit: 72 }));
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
@@ -10,21 +10,9 @@ import { red } from "@mui/material/colors";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import View from "@mui/icons-material/RemoveRedEye";
 import { useNavigate } from "react-router-dom";
-import Rejected from "@mui/icons-material/DisabledByDefault";
-import Approved from "@mui/icons-material/CheckBox";
-import { toast } from "react-toastify";
-import { useDispatch } from "react-redux";
-import {
-  updateMemoStatus,
-  getMemosByUser,
-} from "../Context/features/memoSlice";
+import EditIcon from "@mui/icons-material/Edit";
 const MemoCardMine = ({ memo }) => {
-  const approvedStatus = "Approved";
-  const rejectedStatus = "Rejected";
-  const [name, setName] = useState([]);
-  const [userId, setUserId] = useState(null);
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
   const handleClick = (event) => {
@@ -33,44 +21,16 @@ const MemoCardMine = ({ memo }) => {
   const handleClose = () => {
     setAnchorEl(null);
   };
-
-  useEffect(() => {
-    let user = JSON.parse(localStorage.getItem("profile"));
-    setName(user);
-    setUserId(user?.result?.id);
-  }, []);
-
-  const handleApproved = () => {
-    dispatch(
-      updateMemoStatus({
-        memoId: memo?.memo_id,
-        updatedValue: {
-          status: approvedStatus,
-        },
-        toast,
-        navigate,
-      })
-    );
-    dispatch(getMemosByUser(name?.result?.id));
-    handleClose();
-  };
-
-  const handleRejected = () => {
-    dispatch(
-      updateMemoStatus({
-        memoId: memo?.memo_id,
-        updatedValue: {
-          status: rejectedStatus,
-        },
-        toast,
-        navigate,
-      })
-    );
-    dispatch(getMemosByUser(name?.result?.id));
-    handleClose();
-  };
+  
   return (
-    <Card sx={{ minWidth: 275 }} className="card">
+    <Card sx={{
+      minWidth: 275,
+      transition: "transform 0.3s ease, box-shadow 0.3s ease",
+      "&:hover": {
+        transform: "translateY(-6px)",
+        boxShadow: "0 8px 20px rgba(0, 0, 0, 0.15)",
+      },
+    }}>
       <CardHeader
         avatar={
           <Avatar sx={{ bgcolor: red[500] }} aria-label="memo" variant="square">
@@ -163,17 +123,13 @@ const MemoCardMine = ({ memo }) => {
             fontWeight="bold"
             sx={{ color: red[500] }}
           >
-            Change Status
+            Options
           </Typography>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleApproved}>
-          <Approved color="success" />
-          Approved
-        </MenuItem>
-        <MenuItem onClick={handleRejected}>
-          <Rejected color="error" />
-          Rejected
+        <MenuItem onClick={()=>navigate(`/m_editmemo/${memo.memo_id}`)}>
+          <EditIcon color="warning" />
+          Edit Memo
         </MenuItem>
       </Menu>
     </Card>

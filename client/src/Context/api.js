@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const API = axios.create({
-  //baseURL: "http://localhost:5000/",
-  baseURL: "https://polarpetrochemicalsltd.com/",
+  baseURL: "http://localhost:5000/",
+  //baseURL: "https://polarpetrochemicalsltd.com/",
 });
 
 API.interceptors.request.use((req) => {
@@ -23,6 +23,7 @@ export const getAllUsers = () => API.get("/api/user/alluser"); //get all user
 export const getAllUsersCount = () => API.get("/api/user/allusercount"); //get all user count
 export const deleteUser = (userId) => API.delete(`/api/user/${userId}`); //delete user
 export const getUser = (id) => API.get(`/api/user/getuser/${id}`); //get one user
+export const getUserStats = (id) => API.get(`/api/user/getuserstats/${id}`); //get one user statistics
 export const getUserProfile = (id) => API.get(`/api/user/getuserprofile/${id}`); //get one user profile
 export const updateUser = (updatedValue, userId) =>
   API.put(`/api/user/updateuser/${userId}`, updatedValue); //update user
@@ -47,14 +48,14 @@ export const deleteCategory = (deptId) =>
 export const createCategory = (formValue) =>
   API.post("/api/category/createCategory", formValue); //create category
 
-export const getAllMemos = () => API.get("/api/memo/allmemos"); //get all memo
+export const getAllMemos = (page, limit) => API.get(`/api/memo/allmemos?limit=${limit}&page=${page}`); //get all memo
 export const getAllMemosCount = () => API.get("/api/memo/allmemoscount"); //get all memo count
-export const getAllMemosByCategory = (id) =>
-  API.get(`/api/memo/allmemosbycategory/${id}`); //get all memo by category
-export const getAllMemosByUser = (id) =>
-  API.get(`/api/memo/allmemosbyuser/${id}`); //get all memo by user
-export const getAllMemosToAttend = (id) =>
-  API.get(`/api/memo/allmemostoattend/${id}`); //get all memo to attend
+export const getAllMemosByCategory = (id, page, limit) =>
+  API.get(`/api/memo/allmemosbycategory/${id}?limit=${limit}&page=${page}`); //get all memo by category
+export const getAllMemosByUser = (id, page, limit, search) =>
+  API.get(`/api/memo/allmemosbyuser/${id}?limit=${limit}&page=${page}&search=${search}`); //get all memo by user
+export const getAllMemosToAttend = (id, page, limit, search) =>
+  API.get(`/api/memo/allmemostoattend/${id}?limit=${limit}&page=${page}&search=${search}`); //get all memo to attend
 export const getMemo = (id) => API.get(`/api/memo/getmemo/${id}`); //get one memo
 export const updateMemo = (updatedValue, memoId) =>
   API.put(`/api/memo/updatememo/${memoId}`, updatedValue); //update one memo
@@ -66,8 +67,8 @@ export const createMemo = (formValue) =>
   API.post("/api/memo/creatememo", formValue); //create memo
 export const memoNotification = (formValue) =>
   API.post("/api/memo/memonotification", formValue); //send memo notification
-export const getMemosBySearch = (searchName) =>
-  API.post("/api/memo/allmemosbysearch", searchName); //get memo by Search
+export const getMemosBySearch = (searchName, page, limit) =>
+  API.post(`/api/memo/allmemosbysearch?limit=${limit}&page=${page}`, searchName); //get memo by Search
 
 export const createComment = (formValue) =>
   API.post("/api/comment/createcomment", formValue); //create comment

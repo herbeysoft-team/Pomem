@@ -1,20 +1,12 @@
-import { Box, Typography, Backdrop } from "@mui/material";
+import { Box, Typography, Paper, InputBase, IconButton } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { getMemosByUser } from "../../Context/features/memoSlice";
-import { toast } from "react-toastify";
-import loaderImg from "../../assets/loader.gif";
 import MemoCardsMine from "../../Component/MemoCardsMine";
 import scrollreveal from "scrollreveal";
+import SearchIcon from "@mui/icons-material/Search";
 
 const MyMemos = () => {
-  const dispatch = useDispatch();
-  const [name, setName] = useState([]);
-  const [userId, setUserId] = useState(null);
-  const { memosByUser, loading, error } = useSelector((state) => ({
-    ...state.memo,
-  }));
-  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     const sr = scrollreveal({
       origin: "bottom",
@@ -32,25 +24,10 @@ const MyMemos = () => {
       }
     );
   }, []);
-  useEffect(() => {
-    let user = JSON.parse(localStorage.getItem("profile"));
-    setName(user);
-    setUserId(user?.result?.id);
-  }, []);
 
-  useEffect(() => {
-    if (name?.result?.id) {
-      dispatch(getMemosByUser(name?.result?.id));
-    }
-  }, [dispatch, name?.result?.id]);
-
-  useEffect(() => {
-    loading && setIsLoading(loading);
-  }, [loading]);
-
-  useEffect(() => {
-    error && toast.error(error);
-  }, [error]);
+  const handleSearch = (event) => {
+    setSearchQuery(event.target.value);
+  };
 
   return (
     <Box
@@ -60,19 +37,11 @@ const MyMemos = () => {
         justifyItems: "center",
         alignItems: "center",
         marginTop: "5rem",
-        marginBottom: "5rem",
+        marginBottom: "2rem",
         padding: { xs: "0rem", md: "2rem" },
       }}
       className="card"
     >
-      {isLoading && (
-        <Backdrop
-          sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}
-          open={loading}
-        >
-          <img src={loaderImg} alt="Loading..." />
-        </Backdrop>
-      )}
       <Typography
         component="h4"
         variant="h4"
@@ -81,8 +50,37 @@ const MyMemos = () => {
       >
         My Memos
       </Typography>
-      <Box sx={{ width: "100%" }}>
-        <MemoCardsMine memos={memosByUser} />
+      {/* Search Box */}
+      <Paper
+      component="form"
+      sx={{
+        width: "95%",
+        p: "2px 4px",
+        mt: 2,
+        mx: "auto",
+        display: "flex",
+        alignItems: "center",
+        border: "1px solid #ccc",
+        borderRadius: 20,
+        flexGrow: 1,
+      }}
+      onSubmit={(e) => e.preventDefault()} // prevent page reload
+    >
+      <InputBase
+        sx={{ ml: 2, flex: 1 }}
+        placeholder="Search My Memo by Title or ID"
+        name="searchName"
+        value={searchQuery}
+        onChange={handleSearch}
+        type="text"
+        id="searchName"
+      />
+      <IconButton type="button" sx={{ p: "10px" }}>
+        <SearchIcon />
+      </IconButton>
+    </Paper>
+      <Box sx={{ width: "100%", mt: 2 }}>
+        <MemoCardsMine search={searchQuery} />
       </Box>
     </Box>
   );
