@@ -83,19 +83,21 @@ exports.signin = async (req, res) => {
   }
 };
 
-//Get all user
+//Get all active user
 exports.alluser = async (req, res) => {
   try {
     const getUsers = await db.getall(
-      "SELECT *,users.id as id, staff.id as staff_id FROM users, staff, departments WHERE  users.id = staff.user_id AND staff.dept_id = departments.id",
+      "SELECT *, users.id as id, staff.id as staff_id FROM users, staff, departments WHERE users.id = staff.user_id AND staff.dept_id = departments.id AND users.status = 'ACTIVE'",
       []
     );
     if (getUsers) {
-      res.status(201).json(getUsers);
+      res.status(200).json(getUsers);
+    } else {
+      res.status(404).json({ message: "No active users found" });
     }
   } catch (error) {
-    res.status(500).json({ message: "something went wrong" });
-    console.log(error);
+    res.status(500).json({ message: "Something went wrong" });
+    console.error(error);
   }
 };
 
@@ -162,6 +164,59 @@ exports.getuser = async (req, res) => {
     console.log(error);
   }
 };
+
+// Get user stats (raised + attend-to)
+exports.getuserstats = async (req, res) => {
+  const { id } = req.params;
+  const status = "Pending"; // We’ll use this to count pending memos to attend to
+
+  try {
+    // 1️⃣ Count memos raised by this user
+    const raisedResult = await db.getall(
+      `SELECT COUNT(*) AS raisedCount 
+       FROM memos 
+       WHERE raised_by = ?`,
+      [id]
+    );
+    const raisedCount = raisedResult[0]?.raisedCount || 0;
+
+    // 2️⃣ Count memos user needs to attend to
+    // Using same logic as your allmemostoattend endpoint
+    const attendResult = await db.getall(
+      `
+      SELECT COUNT(DISTINCT memos.id) AS attendCount
+      FROM memos
+      JOIN notifications ON memos.id = notifications.memo_id
+      WHERE memos.status = ? AND notifications.user_id = ?
+      `,
+      [status, id]
+    );
+    const attendCount = attendResult[0]?.attendCount || 0;
+
+    // 3️⃣ (Optional) Count approved/rejected memos raised by user
+    const statusBreakdown = await db.getall(
+      `
+      SELECT status, COUNT(*) AS count
+      FROM memos
+      WHERE raised_by = ?
+      GROUP BY status
+      `,
+      [id]
+    );
+
+    // ✅ Return combined result
+    res.status(200).json({
+      userId: id,
+      raisedCount,
+      attendCount,
+      statusBreakdown,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
 //update user
 exports.updateuser = async (req, res) => {
   const { id } = req.params;
@@ -211,7 +266,8 @@ exports.deleteuser = async (req, res) => {
   const { id } = req.params;
   try {
     const user = await db.delete("DELETE FROM users WHERE id = ?", [id]);
-    if (admin) {
+
+    if (user) {
       res.status(201).json({ message: "User Successfully Deleted" });
     }
   } catch (error) {
@@ -225,7 +281,6 @@ exports.changepassword = async (req, res) => {
   const { id, fpassword } = req.body;
   try {
     const hashedPassword = await bcrypt.hash(fpassword, 12);
-
     const updatePassword = await db.update(
       "UPDATE users SET password = ? WHERE id = ?",
       [hashedPassword, id]
@@ -240,3 +295,31 @@ exports.changepassword = async (req, res) => {
     console.log(error);
   }
 };
+
+// Save Expo Push Token for a user
+exports.saveExpoPushToken = async (req, res) => {
+  const { id, token } = req.params;
+  try {
+    // Check if user exists
+    const existingUser = await db.getval("SELECT id FROM users WHERE id = ?", [id]);
+    if (!existingUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update user's expo token
+    const result = await db.update(
+      "UPDATE users SET expo = ? WHERE id = ?",
+      [token, id]
+    );
+
+    if (result) {
+      return res.status(200).json({ message: "Expo push token saved successfully" });
+    } else {
+      return res.status(400).json({ message: "Failed to save Expo token" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Something went wrong while saving token" });
+  }
+};
+

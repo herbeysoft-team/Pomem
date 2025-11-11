@@ -1,8 +1,10 @@
-import React from "react";
+import React, {useEffect} from "react";
 import "react-toastify/dist/ReactToastify.css";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
+import { useDispatch } from "react-redux";
+import { setUser } from "./Context/features/authSlice";
 import Login from "./Pages/Login";
 import AdminLayout from "./Layout/Admin";
 import ManagerLayout from "./Layout/Manager";
@@ -23,13 +25,21 @@ import ManagerAttendTo from "./Pages/Manager/AttendTo";
 import ManagerMemoDetail from "./Pages/Manager/MemoDetail";
 import ManagerMemoDetailToAttend from "./Pages/Manager/MemoDetailsToAttend";
 import ManagerProfile from "./Pages/Manager/Profile";
+import ManagerEditMemo from "./Pages/Manager/MemoEdit";
 
 import PrivateRoute from './Component/PrivateRoute';
 
 
 function App() {
+  const dispatch = useDispatch();
+  const user = JSON.parse(localStorage.getItem("profile"));
+  useEffect(() => {
+    dispatch(setUser(user));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { mode } = useSelector((state) => ({ ...state.theme }));
   const theme = createTheme({
+    fontFamily: '"Outfit", sans-serif',
     spacing: 10,
     palette: {
       mode,
@@ -51,9 +61,13 @@ function App() {
             // palette values for dark mode
             primary: {
               main: "#2a2728",
+              light: "#e74e48",
+              dark: "#d70e05",
             },
             secondary: {
               main: "#2a2728",
+              light: "#424041",
+              dark: "#080405",
             },
           }),
     },
@@ -66,8 +80,6 @@ function App() {
         <CssBaseline />
         <Routes>
           <Route exact path="/" element={<Login />} />
-        </Routes>
-        <Routes>
           <Route
             exact
             path="/a_dashboard"
@@ -133,8 +145,6 @@ function App() {
               </AdminLayout>
             }
           />
-        </Routes>
-        <Routes>
           <Route
             exact
             path="/m_dashboard"
@@ -179,6 +189,15 @@ function App() {
             element={
               <ManagerLayoutPage>
                 <ManagerMemoDetail />
+              </ManagerLayoutPage>
+            }
+          />
+          <Route
+            exact
+            path="/m_editmemo/:id"
+            element={
+              <ManagerLayoutPage>
+                <ManagerEditMemo />
               </ManagerLayoutPage>
             }
           />

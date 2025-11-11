@@ -32,12 +32,12 @@ export const memoNotification = createAsyncThunk(
 
 export const getMemosBySearch = createAsyncThunk(
   "memo/getMemosBySearch",
-  async ({ searchName, toast }, { rejectWithValue }) => {
+  async ({ searchName, page, limit }, { rejectWithValue }) => {
     try {
-      const response = await api.getMemosBySearch(searchName);
+      const response = await api.getMemosBySearch(searchName, page, limit);
       return response.data;
     } catch (err) {
-      toast.error(err.response.data);
+      //toast.error(err.response.data);
       return rejectWithValue(err.response.data);
     }
   }
@@ -57,9 +57,9 @@ export const getMemosCount = createAsyncThunk(
 
 export const getMemos = createAsyncThunk(
   "memo/getMemos",
-  async (_, { rejectWithValue }) => {
+  async ({page, limit}, { rejectWithValue }) => {
     try {
-      const response = await api.getAllMemos();
+      const response = await api.getAllMemos(page, limit);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response.data);
@@ -69,9 +69,9 @@ export const getMemos = createAsyncThunk(
 
 export const getMemosByCategory = createAsyncThunk(
   "memo/getMemosByCategory",
-  async (id, { rejectWithValue }) => {
+  async ({id, page, limit}, { rejectWithValue }) => {
     try {
-      const response = await api.getAllMemosByCategory(id);
+      const response = await api.getAllMemosByCategory(id, page, limit);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response.data);
@@ -81,9 +81,9 @@ export const getMemosByCategory = createAsyncThunk(
 
 export const getMemosByUser = createAsyncThunk(
   "memo/getMemosByUser",
-  async (id, { rejectWithValue }) => {
+  async ({id, page, limit, search}, { rejectWithValue }) => {
     try {
-      const response = await api.getAllMemosByUser(id);
+      const response = await api.getAllMemosByUser(id, page, limit, search);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response.data);
@@ -93,9 +93,9 @@ export const getMemosByUser = createAsyncThunk(
 
 export const getMemosToAttend = createAsyncThunk(
   "memo/getMemosToAttend",
-  async (id, { rejectWithValue }) => {
+  async ({id, page, limit, search}, { rejectWithValue }) => {
     try {
-      const response = await api.getAllMemosToAttend(id);
+      const response = await api.getAllMemosToAttend(id, page, limit, search);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response.data);
@@ -119,9 +119,9 @@ export const updateMemo = createAsyncThunk(
   "memo/updateMemo",
   async ({ memoId, updatedValue, navigate, toast }, { rejectWithValue }) => {
     try {
-      const response = await api.updateDepartment(updatedValue, memoId);
+      const response = await api.updateMemo(updatedValue, memoId);
       toast.success("Memo Updated Successfully");
-      setTimeout(() => navigate("/m_dashboard"), 1000);
+      setTimeout(() => navigate("/m_mymemo"), 1000);
       return response.data;
     } catch (err) {
       toast.error(err.response.data);
@@ -135,7 +135,8 @@ export const updateMemoStatus = createAsyncThunk(
   async ({ memoId, updatedValue, toast, navigate }, { rejectWithValue }) => {
     try {
       const response = await api.updateMemoStatus(updatedValue, memoId);
-      toast.success("Memo Updated Successfully");
+      toast.success(`Memo ${updatedValue.status}`);
+      setTimeout(() => navigate("/m_attendto"), 1000);
       return response.data;
     } catch (err) {
       toast.error(err.response.data);
@@ -165,8 +166,28 @@ const memoSlice = createSlice({
     memosByUser: [],
     memosToAttend: [],
     memoscount: {},
+    allmemopagination:{
+      currentPage: 1,
+      totalPages: 1,
+      totalMemos: 0,
+      limit: 24,
+    },
+    mymemopagination:{
+      currentPage: 1,
+      totalPages: 1,
+      totalMemos: 0,
+      limit: 24,
+    },
+    attendmemopagination:{
+      currentPage: 1,
+      totalPages: 1,
+      totalMemos: 0,
+      limit: 24,
+    },
     error: "",
-    loading: false,
+    loadingallmemos: false,
+    loadingmymemo: false,
+    loadingattendmemo: false,
   },
   reducers: {
     clearMemo: (state) => {
@@ -175,14 +196,24 @@ const memoSlice = createSlice({
   },
   extraReducers: {
     [getMemos.pending]: (state, action) => {
-      state.loading = true;
+      state.loadingallmemos = true;
     },
     [getMemos.fulfilled]: (state, action) => {
-      state.loading = false;
-      state.memos = action.payload;
+      state.loadingallmemos = false;
+      state.memos = action.payload.memos;
+      state.allmemopagination = {
+        currentPage: action.payload.currentPage,
+        totalPages: action.payload.totalPages,
+        totalMemos: action.payload.totalMemos,
+        limit: action.payload.limit,
+      };
+    },
+    [getMemos.rejected]: (state, action) => {
+      state.loadingallmemos = false;
+      state.error = action.payload.message;
     },
     [getMemosBySearch.rejected]: (state, action) => {
-      state.loading = false;
+      state.loadingallmemos = false;
       state.error = action.payload.message;
     },
     [getMemosBySearch.pending]: (state, action) => {
@@ -190,11 +221,13 @@ const memoSlice = createSlice({
     },
     [getMemosBySearch.fulfilled]: (state, action) => {
       state.loading = false;
-      state.memos = action.payload;
-    },
-    [getMemos.rejected]: (state, action) => {
-      state.loading = false;
-      state.error = action.payload.message;
+      state.memos = action.payload.memos;
+      state.allmemopagination = {
+        currentPage: action.payload.currentPage,
+        totalPages: action.payload.totalPages,
+        totalMemos: action.payload.totalMemos,
+        limit: action.payload.limit,
+      };
     },
     [getMemosCount.pending]: (state, action) => {
       state.loading = true;
@@ -212,33 +245,51 @@ const memoSlice = createSlice({
     },
     [getMemosByCategory.fulfilled]: (state, action) => {
       state.loading = false;
-      state.memos = action.payload;
+      state.memos = action.payload.memos;
+      state.allmemopagination = {
+        currentPage: action.payload.currentPage,
+        totalPages: action.payload.totalPages,
+        totalMemos: action.payload.totalMemos,
+        limit: action.payload.limit,
+      };
     },
     [getMemosByCategory.rejected]: (state, action) => {
       state.loading = false;
       state.error = action.payload.message;
     },
     [getMemosByUser.rejected]: (state, action) => {
-      state.loading = false;
+      state.loadingmymemo = false;
       state.error = action.payload.message;
     },
     [getMemosByUser.pending]: (state, action) => {
-      state.loading = true;
+      state.loadingmymemo = true;
     },
     [getMemosByUser.fulfilled]: (state, action) => {
-      state.loading = false;
-      state.memosByUser = action.payload;
+      state.loadingmymemo = false;
+      state.memosByUser = action.payload.memos;
+      state.mymemopagination = {
+        currentPage: action.payload.currentPage,
+        totalPages: action.payload.totalPages,
+        totalMemos: action.payload.totalMemos,
+        limit: action.payload.limit,
+      };
     },
     [getMemosToAttend.rejected]: (state, action) => {
-      state.loading = false;
+      state.loadingattendmemo = false;
       state.error = action.payload.message;
     },
     [getMemosToAttend.pending]: (state, action) => {
-      state.loading = true;
+      state.loadingattendmemo = true;
     },
     [getMemosToAttend.fulfilled]: (state, action) => {
-      state.loading = false;
-      state.memosToAttend = action.payload;
+      state.loadingattendmemo = false;
+      state.memosToAttend = action.payload.memos;
+      state.attendmemopagination = {
+        currentPage: action.payload.currentPage,
+        totalPages: action.payload.totalPages,
+        totalMemos: action.payload.totalMemos,
+        limit: action.payload.limit,
+      };
     },
     [deleteMemo.pending]: (state, action) => {
       state.loading = true;

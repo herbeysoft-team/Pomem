@@ -14,7 +14,6 @@ import {
 import { getMemo } from "../../Context/features/memoSlice";
 import { useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { toast } from "react-toastify";
 import loaderImg from "../../assets/loader.gif";
 import React, { useEffect, useState } from "react";
 import parser from "html-react-parser";
@@ -61,7 +60,7 @@ function MemoDetail() {
   }, [loading]);
 
   useEffect(() => {
-    error && toast.error(error);
+    error && console.log(error);
   }, [error]);
 
   return (
@@ -74,8 +73,7 @@ function MemoDetail() {
         marginTop: "5rem",
         marginBottom: "5rem",
         padding: { xs: "1rem", md: "2rem" },
-        marginRight: { xs: "0rem", md: "15rem" },
-        marginLeft: { xs: "0rem", md: "15rem" },
+        width: "100%", // take full width
       }}
       className="card"
     >
@@ -116,14 +114,14 @@ function MemoDetail() {
         <Grid container spacing={{ xs: 0, md: 2 }}>
           <Grid item xs={12} md={6}>
             <Typography variant={{ xs: "subtitle2", md: "h6" }}>
-              <span sx={{ fontWeight: "bold" }}>FROM : </span>{" "}
+              <span style={{ fontWeight: 800, color: "orange" }}>FROM : </span>{" "}
               {`${memo?.createdBy?.firstname} `} {memo?.createdBy?.lastname} -{" "}
               {memo?.createdBy?.dept_name}
             </Typography>
           </Grid>
           <Grid item xs={12} md={6}>
             <Typography variant={{ xs: "subtitle2", md: "h6" }}>
-              <span sx={{ fontWeight: "bold" }}>TO : </span>{" "}
+              <span style={{ fontWeight: 800, color: "orange" }}>TO : </span>{" "}
               {`${memo?.toWho?.firstname} `} {memo?.toWho?.lastname} -{" "}
               {memo?.toWho?.dept_name}
             </Typography>
@@ -132,13 +130,13 @@ function MemoDetail() {
         <Grid container spacing={{ xs: 0, md: 2 }}>
           <Grid item xs={12} md={6}>
             <Typography variant={{ xs: "subtitle2", md: "h6" }}>
-              <span sx={{ fontWeight: "bold" }}>DATE : </span>{" "}
+              <span style={{ fontWeight: 800, color: "orange" }}>DATE : </span>{" "}
               {memo?.memo?.date_created.split(",")[0]}
             </Typography>
           </Grid>
           <Grid item xs={12} md={6}>
             <Typography variant={{ xs: "subtitle2", md: "h6" }}>
-              <span sx={{ fontWeight: "bold" }}>THROUGH : </span>{" "}
+              <span style={{ fontWeight: 800, color: "orange" }}>THROUGH : </span>{" "}
               {`${memo?.throughWho?.firstname}`} {memo?.throughWho?.lastname} -{" "}
               {memo?.throughWho?.dept_name}
             </Typography>
@@ -153,10 +151,11 @@ function MemoDetail() {
           }}
         >
           <Typography variant={{ xs: "subtitle2", md: "h6" }}>
-            <span sx={{ fontWeight: "bold" }}>
+            <span style={{ fontWeight: 800, color: "orange" }}>
               {" "}
-              SUBJECT : {memo?.memo?.subject.toUpperCase()}{" "}
+              SUBJECT :  
             </span>
+            {" "}{memo?.memo?.subject.toUpperCase()}{" "}
           </Typography>
         </Box>
         <Divider />

@@ -46,9 +46,22 @@ export const getUser = createAsyncThunk(
     }
   }
 );
+
+export const getUserStats = createAsyncThunk(
+  "user/getUserStats",
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.getUserStats(id);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response.data);
+    }
+  }
+);
+
 export const updateUser = createAsyncThunk(
   "user/updateUser",
-  async ({ userId, updatedValue, navigate, toast }, { rejectWithValue }) => {
+  async ({ userId, updatedValue, toast }, { rejectWithValue }) => {
     try {
       const response = await api.updateUser(updatedValue, userId);
       toast.success("Updated Successfully");
@@ -80,11 +93,12 @@ const userSlice = createSlice({
     user: {},
     users: [],
     userscount: {},
+    userstats: {},
     error: "",
     loading: false,
   },
   extraReducers: {
-    [getUsers.pending]: (state, action) => {
+    [getUsers.pending]: (state) => {
       state.loading = true;
     },
     [getUsers.fulfilled]: (state, action) => {
@@ -95,7 +109,18 @@ const userSlice = createSlice({
       state.loading = false;
       state.error = action.payload.message;
     },
-    [getUsersCount.pending]: (state, action) => {
+    [getUserStats.pending]: (state) => {
+      state.loading = true;
+    },
+    [getUserStats.fulfilled]: (state, action) => {
+      state.loading = false;
+      state.userstats = action.payload;
+    },
+    [getUserStats.rejected]: (state, action) => {
+      state.loading = false;
+      state.error = action.payload.message;
+    },
+    [getUsersCount.pending]: (state) => {
       state.loading = true;
     },
     [getUsersCount.fulfilled]: (state, action) => {

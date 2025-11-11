@@ -9,6 +9,7 @@ const {
   allmemostoattend,
   getmemo,
   allmemocount,
+  updatememo,
   updatememostatus,
   memonotifcation,
   allmemosbysearch,
@@ -22,9 +23,9 @@ router.get("/allmemos", allmemos);
 router.get("/allmemosbycategory/:id", allmemosbycategory);
 router.get("/allmemosbyuser/:id", allmemosbyuser);
 router.get("/allmemostoattend/:id", allmemostoattend);
-router.get("/allmemostoattend/:id", allmemostoattend);
 router.get("/getmemo/:id", getmemo);
 router.get("/allmemoscount", allmemocount);
+router.put("/updatememo/:id", updatememo);
 router.put("/updatememostatus/:id", updatememostatus);
 router.delete("/deletememo/:id", deletememo);
 

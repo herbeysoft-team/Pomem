@@ -1,7 +1,6 @@
 import { IconButton, InputBase, Paper } from "@mui/material";
 import React from "react";
 import SearchIcon from "@mui/icons-material/Search";
-import NoteAltIcon from "@mui/icons-material/NoteAlt";
 import {
   getMemosBySearch,
   getMemos,
@@ -16,15 +15,18 @@ const SearchCard = () => {
     const searchName = e.target.value;
     if (searchName.length > 3) {
       dispatch(clearMemo());
+      console.log(searchName)
       dispatch(
         getMemosBySearch({
           searchName: {
             searchName,
           },
+          page: 1,
+          limit: 24
         })
       );
     } else {
-      dispatch(getMemos());
+      dispatch(getMemos({ page: 1, limit: 24 }));
     }
   };
   return (
@@ -40,20 +42,21 @@ const SearchCard = () => {
         flexGrow: 1,
       }}
     >
-      <IconButton sx={{ p: "10px" }}>
-        <SearchIcon />
-      </IconButton>
+      
       <InputBase
         sx={{ ml: 1, flex: 1 }}
-        placeholder="Search Memo"
+        placeholder="Search Memo by Title or ID"
         name="searchName"
         onChange={onSearchChange}
         type="text"
         id="searchName"
       />
-      <IconButton type="submit" sx={{ p: "10px" }}>
-        <NoteAltIcon />
+      <IconButton sx={{ p: "10px" }}>
+        <SearchIcon />
       </IconButton>
+      {/* <IconButton type="submit" sx={{ p: "10px" }}>
+        <NoteAltIcon />
+      </IconButton> */}
     </Paper>
   );
 };

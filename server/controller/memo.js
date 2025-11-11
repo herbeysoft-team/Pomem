@@ -1,15 +1,21 @@
 const db = require("../config/database");
+const sendEmail = require("../utils/sendEmail")
+const { Expo } = require('expo-server-sdk');
+const expo = new Expo();
 
-//create a memo
+
+// Create a memo
 exports.creatememo = async (req, res) => {
-  const { fromWho, fromDept, toWho, throughWho, category, subject, content } =
-    req.body;
+  const { fromWho, fromDept, toWho, throughWho, category, subject, content } = req.body;
   const currentDate = new Date();
   const status = "Pending";
 
   try {
+    // Insert memo first
     const memo = await db.insert(
-      "INSERT INTO memos (date_created, date_updated, department_id, category_id, raised_by, toWho, throughWho, status, subject, content) VALUES (?,?,?,?,?,?,?,?,?,?)",
+      `INSERT INTO memos 
+        (date_created, date_updated, department_id, category_id, raised_by, toWho, throughWho, status, subject, content)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
       [
         currentDate.toLocaleString(),
         currentDate.toLocaleString(),
@@ -23,26 +29,81 @@ exports.creatememo = async (req, res) => {
         content,
       ]
     );
-    if (memo) {
-      if (toWho) {
-        const NotifyToWho = await db.insert(
-          "INSERT INTO notifications (memo_id, user_id, date_updated) VALUES (?,?,?)",
-          [memo, toWho, currentDate.toLocaleString()]
-        );
+
+    if (!memo) return res.status(400).json({ message: "Failed to create memo" });
+
+    // ✅ Group all user IDs you need to notify
+    const userIds = [toWho, throughWho].filter(Boolean);
+
+    // ✅ Fetch all users in ONE query
+    const users = await db.query(
+      "SELECT id, email, expo FROM users WHERE id IN (?)",
+      [userIds]
+    );
+
+    // ✅ Build and save all notifications in one go (batch insert)
+    const notificationValues = userIds.map((uid) => [
+      memo,
+      uid,
+      currentDate.toLocaleString(),
+    ]);
+
+    await db.insert(
+      "INSERT INTO notifications (memo_id, user_id, date_updated) VALUES ?",
+      [notificationValues]
+    );
+
+    // ✅ Create email + push promises without awaiting each one (parallel)
+    const sendTasks = users.map((user) => {
+      const roleLabel = user.id === toWho ? "Recipient" : "Intermediary";
+
+      // --- Email content
+      const mailOptions = {
+        from: "notify@polarpetrochemicalsltd.com",
+        to: user.email,
+        subject: "POMEM - Urgent: New Memo Notification",
+        html: `
+          <div style="background-color: red; color: white; padding: 10px; text-align: center;">
+            <h1>POMEM</h1>
+          </div>
+          <p>Hello,</p>
+          <p>This is to notify you that a new memo has been assigned to you as <strong>${roleLabel}</strong>.</p>
+          <p><strong>Subject:</strong> ${subject}</p>
+          <p><strong>Memo ID:</strong> ${memo}</p>
+          <p>Please log in to POMEM to review and take action.</p>
+          <p>Best Regards,<br>POMEM Notification Service</p>
+        `,
+      };
+
+      // --- Push notification content
+      let pushPromise = null;
+      if (user.expo && Expo.isExpoPushToken(user.expo)) {
+        const message = {
+          to: user.expo,
+          sound: "pomemgingle.mp3",
+          title: "📄 New Memo Assigned",
+          body: `You have a new memo as ${roleLabel}: "${subject}"`,
+          data: { memo_id: memo },
+        };
+
+        const chunks = expo.chunkPushNotifications([message]);
+        pushPromise = Promise.all(chunks.map((chunk) => expo.sendPushNotificationsAsync(chunk)));
       }
-      if (throughWho) {
-        const NotifyThroughWho = await db.insert(
-          "INSERT INTO notifications (memo_id, user_id, date_updated) VALUES (?,?,?)",
-          [memo, throughWho, currentDate.toLocaleString()]
-        );
-      }
-      res.status(201).json(memo);
-    }
+
+      // Return parallel tasks
+      return Promise.allSettled([sendEmail(mailOptions), pushPromise]);
+    });
+
+    // ✅ Run all send operations concurrently
+    await Promise.allSettled(sendTasks);
+
+    res.status(201).json({ message: "Memo raised successfully with notifications sent" });
   } catch (error) {
-    res.status(500).json({ message: "something went wrong" });
-    console.log(error);
+    console.error("❌ Error creating memo:", error);
+    res.status(500).json({ message: "Something went wrong" });
   }
 };
+
 
 //Get one memo
 exports.getmemo = async (req, res) => {
@@ -95,90 +156,319 @@ exports.getmemo = async (req, res) => {
   }
 };
 
-//Get all memos
+// Get all memos (with pagination, no search)
 exports.allmemos = async (req, res) => {
+  let { page = 1, limit = 24 } = req.query;
+
+  page = parseInt(page);
+  limit = parseInt(limit);
+  const offset = (page - 1) * limit;
+
   try {
-    const memo = await db.getall(
-      "SELECT users.id AS user_id, users.firstname, users.lastname, departments.id AS department_id, departments.dept_name, categories.id AS category_id, categories.cat_name, memos.id as memo_id, memos.date_created, memos.subject, memos.status FROM memos,departments, categories, users WHERE memos.department_id = departments.id AND memos.category_id = categories.id AND memos.raised_by = users.id ORDER BY memos.id DESC"
+    // Count total memos for pagination
+    const countResult = await db.getall(
+      `SELECT COUNT(*) AS total FROM memos`
     );
-    if (memo) {
-      res.status(201).json(memo);
-    }
+
+    const totalMemos = countResult[0].total;
+    const totalPages = Math.ceil(totalMemos / limit);
+
+    // Fetch paginated memos
+    const memos = await db.getall(
+      `SELECT 
+          users.id AS user_id, 
+          users.firstname, 
+          users.lastname, 
+          departments.id AS department_id, 
+          departments.dept_name, 
+          categories.id AS category_id, 
+          categories.cat_name, 
+          memos.id as memo_id, 
+          memos.date_created, 
+          memos.subject, 
+          memos.status
+       FROM memos
+       JOIN departments ON memos.department_id = departments.id
+       JOIN categories ON memos.category_id = categories.id
+       JOIN users ON memos.raised_by = users.id
+       ORDER BY memos.id DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+
+    res.status(200).json({
+      currentPage: page,
+      totalPages,
+      totalMemos,
+      limit,
+      memos,
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "something went wrong" });
-    console.log(error);
   }
 };
 
-//Get all memos by search
+
+// Get memos by search (with pagination)
 exports.allmemosbysearch = async (req, res) => {
-  const { searchName } = req.body;
-  console.log(req.body);
+  const { searchName = "" } = req.body;
+  let { page = 1, limit = 10} = req.query;
+
+  // Convert types
+  page = parseInt(page);
+  limit = parseInt(limit);
+
+  const offset = (page - 1) * limit;
+
   try {
-    const memo = await db.getall(
-      "SELECT users.id AS user_id, users.firstname, users.lastname, departments.id AS department_id, departments.dept_name, categories.id AS category_id, categories.cat_name, memos.id as memo_id, memos.date_created, memos.subject, memos.status FROM memos, departments, categories, users WHERE memos.department_id = departments.id AND memos.category_id = categories.id AND memos.raised_by = users.id AND memos.subject LIKE ? ORDER BY memos.id DESC",
-      [`%${searchName}%`]
+    // Count total memos
+    const countResult = await db.getall(
+      `SELECT COUNT(*) AS total
+       FROM memos
+       JOIN departments ON memos.department_id = departments.id
+       JOIN categories ON memos.category_id = categories.id
+       JOIN users ON memos.raised_by = users.id
+       WHERE memos.subject LIKE ? OR memos.id LIKE ?`,
+      [`%${searchName}%`, `%${searchName}%`]
     );
-    if (memo) {
-      res.status(201).json(memo);
-    }
+
+    const totalMemos = countResult[0]?.total || 0;
+    const totalPages = Math.ceil(totalMemos / limit);
+
+    // Fetch paginated memos
+    const memos = await db.getall(
+      `SELECT 
+          users.id AS user_id, 
+          users.firstname, 
+          users.lastname, 
+          departments.id AS department_id, 
+          departments.dept_name, 
+          categories.id AS category_id, 
+          categories.cat_name, 
+          memos.id AS memo_id, 
+          memos.date_created, 
+          memos.subject, 
+          memos.status 
+       FROM memos
+       JOIN departments ON memos.department_id = departments.id
+       JOIN categories ON memos.category_id = categories.id
+       JOIN users ON memos.raised_by = users.id
+       WHERE memos.subject LIKE ? OR memos.id LIKE ?
+       ORDER BY memos.id DESC
+       LIMIT ? OFFSET ?`,
+      [`%${searchName}%`, `%${searchName}%`, limit, offset]
+    );
+
+    res.status(200).json({
+      currentPage: page,
+      totalPages,
+      totalMemos,
+      limit,
+      memos,
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "something went wrong" });
-    console.log(error);
   }
 };
+
 
 //Get all memos by category
 exports.allmemosbycategory = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // category_id
+  const { page = 1, limit = 10 } = req.query;
+
+  const parsedPage = parseInt(page, 10);
+  const parsedLimit = parseInt(limit, 10);
+  const offset = (parsedPage - 1) * parsedLimit;
+
   try {
-    const memo = await db.getall(
-      "SELECT users.id AS user_id, users.firstname, users.lastname, departments.id AS department_id, departments.dept_name, categories.id AS category_id, categories.cat_name, memos.id as memo_id, memos.date_created, memos.subject, memos.status FROM memos, departments, categories, users WHERE memos.department_id = departments.id AND memos.category_id = categories.id AND memos.raised_by = users.id AND memos.category_id = ? ORDER BY memos.id DESC",
+    // 🧮 1. Count total memos for pagination
+    const countResult = await db.getall(
+      `SELECT COUNT(*) AS total
+       FROM memos
+       WHERE memos.category_id = ?`,
       [id]
     );
-    if (memo) {
-      res.status(201).json(memo);
-    }
+
+    const totalMemos = countResult[0].total;
+    const totalPages = Math.ceil(totalMemos / parsedLimit);
+
+    // 📄 2. Fetch paginated memos by category
+    const memos = await db.getall(
+      `SELECT 
+        users.id AS user_id, 
+        users.firstname, 
+        users.lastname, 
+        departments.id AS department_id, 
+        departments.dept_name, 
+        categories.id AS category_id, 
+        categories.cat_name, 
+        memos.id AS memo_id, 
+        memos.date_created, 
+        memos.subject, 
+        memos.status
+       FROM memos
+       JOIN departments ON memos.department_id = departments.id
+       JOIN categories ON memos.category_id = categories.id
+       JOIN users ON memos.raised_by = users.id
+       WHERE memos.category_id = ?
+       ORDER BY memos.id DESC
+       LIMIT ? OFFSET ?`,
+      [id, parsedLimit, offset]
+    );
+
+    // ✅ 3. Send paginated response
+    res.status(200).json({
+      currentPage: parsedPage,
+      totalPages,
+      totalMemos,
+      limit: parsedLimit,
+      memos,
+    });
+
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "something went wrong" });
-    console.log(error);
   }
 };
 
-//Get all memos created by a particular user
+
+// Get all memos created by a particular user with search + pagination
 exports.allmemosbyuser = async (req, res) => {
-  const { id } = req.params;
+  const { id } = req.params; // user id
+  const { page = 1, limit = 10, search = "" } = req.query;
+
+  const offset = (page - 1) * limit;
+
   try {
-    const memo = await db.getall(
-      "SELECT users.id AS user_id, users.firstname, users.lastname, departments.id AS department_id, departments.dept_name, categories.id AS category_id, categories.cat_name, memos.id as memo_id, memos.date_created, memos.subject, memos.status FROM memos, departments, categories, users WHERE memos.department_id = departments.id AND memos.category_id = categories.id AND memos.raised_by = users.id AND memos.raised_by = ? ORDER BY memos.id DESC",
-      [id]
+    // Count total memos for pagination
+    const countResult = await db.getall(
+      `SELECT COUNT(*) AS total 
+       FROM memos 
+       WHERE raised_by = ? 
+         AND (subject LIKE ? OR id LIKE ?)`,
+      [id, `%${search}%`, `%${search}%`]
     );
-    if (memo) {
-      res.status(201).json(memo);
-    }
+
+    const totalMemos = countResult[0].total;
+    const totalPages = Math.ceil(totalMemos / limit);
+
+    // Fetch paginated + searched memos
+    const memos = await db.getall(
+      `SELECT 
+          users.id AS user_id, 
+          users.firstname, 
+          users.lastname, 
+          departments.id AS department_id, 
+          departments.dept_name, 
+          categories.id AS category_id, 
+          categories.cat_name, 
+          memos.id as memo_id, 
+          memos.date_created, 
+          memos.subject, 
+          memos.status
+       FROM memos
+       JOIN departments ON memos.department_id = departments.id
+       JOIN categories ON memos.category_id = categories.id
+       JOIN users ON memos.raised_by = users.id
+       WHERE memos.raised_by = ?
+         AND (memos.subject LIKE ? OR memos.id LIKE ?)
+       ORDER BY memos.id DESC
+       LIMIT ? OFFSET ?`,
+      [id, `%${search}%`, `%${search}%`, parseInt(limit), parseInt(offset)]
+    );
+
+    res.status(200).json({
+      currentPage: parseInt(page),
+      totalPages,
+      totalMemos,
+      limit: parseInt(limit),
+      memos,
+    });
   } catch (error) {
     res.status(500).json({ message: "something went wrong" });
     console.log(error);
   }
 };
-
-//Get all memos created by a particular user
+  
+// Get all memos created by a particular user (with search + pagination)
 exports.allmemostoattend = async (req, res) => {
   const { id } = req.params;
   const status = "Pending";
+
+  // Pagination defaults
+  let { page = 1, limit = 10, search = "" } = req.query;
+  page = parseInt(page);
+  limit = parseInt(limit);
+  const offset = (page - 1) * limit;
+
   try {
+    // Build search filter
+    const searchQuery =
+      search && search.trim() !== ""
+        ? `AND (memos.subject LIKE ? OR memos.id LIKE ?)`
+        : "";
+
+    const params = search
+      ? [status, id, `%${search}%`, `%${search}%`, limit, offset]
+      : [status, id, limit, offset];
+
+    // Query with pagination + search
     const memo = await db.getall(
-      "SELECT users.id AS user_id, users.firstname, users.lastname, departments.id AS department_id, departments.dept_name, categories.id AS category_id, categories.cat_name, memos.id as memo_id, memos.date_created, memos.subject, memos.status FROM memos, departments, categories, notifications, users WHERE memos.department_id = departments.id AND memos.id = notifications.memo_id AND memos.category_id = categories.id AND memos.raised_by = users.id AND memos.status = ? AND notifications.user_id = ? ORDER BY memos.id DESC",
-      [status, id]
+      `
+      SELECT DISTINCT
+        users.id AS user_id, users.firstname, users.lastname, 
+        departments.id AS department_id, departments.dept_name, 
+        categories.id AS category_id, categories.cat_name, 
+        memos.id as memo_id, memos.date_created, memos.subject, memos.status
+      FROM memos
+      JOIN departments ON memos.department_id = departments.id
+      JOIN categories ON memos.category_id = categories.id
+      JOIN notifications ON memos.id = notifications.memo_id
+      JOIN users ON memos.raised_by = users.id
+      WHERE memos.status = ? AND notifications.user_id = ? ${searchQuery}
+      ORDER BY memos.id DESC
+      LIMIT ? OFFSET ?
+      `,
+      params
     );
-    if (memo) {
-      res.status(201).json(memo);
-    }
+
+    // Count total for pagination
+    const countParams = search
+      ? [status, id, `%${search}%`, `%${search}%`]
+      : [status, id];
+
+    const totalResult = await db.getall(
+      `
+      SELECT COUNT(*) AS total
+      FROM memos
+      JOIN departments ON memos.department_id = departments.id
+      JOIN categories ON memos.category_id = categories.id
+      JOIN notifications ON memos.id = notifications.memo_id
+      JOIN users ON memos.raised_by = users.id
+      WHERE memos.status = ? AND notifications.user_id = ? ${searchQuery}
+      `,
+      countParams
+    );
+
+    const total = totalResult[0]?.total || 0;
+
+    res.status(200).json({
+      memos: memo,
+      totalMemos: total,
+      currentPage:page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+     
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "something went wrong" });
-    console.log(error);
   }
 };
+
 
 //Get all user count
 exports.allmemocount = async (req, res) => {
@@ -207,6 +497,67 @@ exports.allmemocount = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "something went wrong" });
     console.log(error);
+  }
+};
+
+//edit the memo 
+exports.updatememo = async (req, res) => {
+  const { id } = req.params; // memo ID to update
+  const status = "Pending";
+  const {
+    fromWho,
+    fromDept,
+    toWho,
+    throughWho,
+    category,
+    subject,
+    content,
+  } = req.body;
+
+  const currentDate = new Date();
+
+  try {
+    // Check if the memo exists
+    const existingMemo = await db.query("SELECT * FROM memos WHERE id = ?", [
+      id,
+    ]);
+    if (!existingMemo || existingMemo.length === 0) {
+      return res.status(404).json({ message: "Memo not found" });
+    }
+
+    // Update all editable fields except status
+    const updateQuery = `
+      UPDATE memos
+      SET 
+        date_updated = ?,
+        department_id = ?,
+        category_id = ?,
+        raised_by = ?,
+        toWho = ?,
+        throughWho = ?,
+        subject = ?,
+        content = ?,
+        status = ?
+      WHERE id = ?
+    `;
+
+    await db.update(updateQuery, [
+      currentDate.toLocaleString(),
+      fromDept,
+      category,
+      fromWho,
+      toWho,
+      throughWho,
+      subject,
+      content,
+      status,
+      id,
+    ]);
+
+    res.status(200).json({ message: "Memo updated successfully" });
+  } catch (error) {
+    console.error("Error updating memo:", error);
+    res.status(500).json({ message: "Something went wrong while updating memo" });
   }
 };
 
@@ -240,9 +591,75 @@ exports.memonotifcation = async (req, res) => {
       [memo_id, user_id, currentDate.toLocaleString()]
     );
     if (SendMemoTo) {
-      res.status(201).json({ message: "Notification Sent" });
+      // Fetch memo details
+      const memoDetails = await db.query("SELECT * FROM memos WHERE id = ?", [
+        memo_id,
+      ]);
+
+      if (memoDetails.length > 0) {
+        const { subject } = memoDetails[0];
+
+        // Fetch email of toWho user
+        const toWhoEmail = await db.query(
+          "SELECT email FROM users WHERE id = ?",
+          [user_id]
+        );
+
+        // Fetch email of toWho user
+        const toWhoToken = await db.query(
+          "SELECT expo FROM users WHERE id = ?",
+          [user_id]
+        );
+
+        if (toWhoEmail.length > 0) {
+          const mailOptionsToWho = {
+            from: "notify@polarpetrochemicalsltd.com",
+            to: toWhoEmail[0]?.email,
+            subject: "POMEM - URGENT: Memo Notification",
+            html: `
+              <div style="background-color: red; color: white; padding: 10px; text-align: center;">
+                <h1>POMEM</h1>
+              </div>
+              <p>Hello,</p>
+              <p>This is to inform you that you are involved in a critical memo with the following details </p>
+              <p style="font-weight: bold; color: red;">Subject: ${subject}</p>
+              <p style="font-weight: bold; color: red;">Memo ID: <span style="color: red;">${memo_id}</span></p>
+              <p>Time is of the essence, and your prompt attention to this matter is crucial.</p>
+
+              <p>Best Regards.</p>
+            `,
+          };
+          await sendEmail(mailOptionsToWho);
+
+          // ✅ Send Expo push notification (if token exists and valid)
+          if (toWhoToken && Expo.isExpoPushToken(toWhoToken)) {
+            const messages = [
+              {
+                to: toWhoToken,
+                sound: 'pomemgingle.mp3',
+                title: '📄 New Memo Assigned',
+                body: `You have a new memo to attend to : "${subject}"`,
+                data: { memo_id },
+              },
+            ];
+
+            const chunks = expo.chunkPushNotifications(messages);
+            for (const chunk of chunks) {
+              try {
+                await expo.sendPushNotificationsAsync(chunk);
+              } catch (error) {
+                console.error("Expo push error:", error);
+              }
+            }
+          } else {
+            console.warn(`Invalid or missing Expo token for user ID ${user_id}`);
+          }
+        }
+        }   
+        res.status(201).json({ message: "Memo Sent Successfully" });
+      }
     }
-  } catch (error) {
+   catch (error) {
     res.status(500).json({ message: "something went wrong" });
     console.log(error);
   }

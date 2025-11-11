@@ -8,7 +8,8 @@ const db = new mysql({
   user: process.env.USER,
   password: process.env.PASSWORD,
   database: process.env.DATABASE,
-  timezone:"Z"
+  timezone:"UTC",
+  skiptzfix: true
 
 })
 

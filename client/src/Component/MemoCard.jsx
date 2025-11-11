@@ -15,7 +15,14 @@ const MemoCard = ({ memo }) => {
   const navigate = useNavigate();
 
   return (
-    <Card sx={{ minWidth: 275 }} className="card">
+    <Card sx={{
+      minWidth: 275,
+      transition: "transform 0.3s ease, box-shadow 0.3s ease",
+      "&:hover": {
+        transform: "translateY(-6px)",
+        boxShadow: "0 8px 20px rgba(0, 0, 0, 0.15)",
+      },
+    }} >
       <CardHeader
         avatar={
           <Avatar sx={{ bgcolor: red[500] }} aria-label="memo" variant="square">

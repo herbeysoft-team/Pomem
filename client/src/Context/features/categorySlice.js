@@ -23,6 +23,7 @@ export const getCategories = createAsyncThunk(
       const response = await api.getAllCategories();
       return response.data;
     } catch (err) {
+      console.log(err.response.data)
       return rejectWithValue(err.response.data);
     }
   }

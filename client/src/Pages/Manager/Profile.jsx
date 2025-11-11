@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getUserProfile, updateUser } from "../../Context/features/userSlice";
+import { getUserProfile, updateUser, getUserStats } from "../../Context/features/userSlice";
 import { passwordChange } from "../../Context/features/authSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
@@ -19,6 +19,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import KeyIcon from "@mui/icons-material/Key";
 import loaderImg from "../../assets/loader.gif";
+import LogoutIcon from "@mui/icons-material/Logout"
 
 const Wrapper = styled(Box)(({ theme }) => ({
   height: "100vh",
@@ -73,7 +74,7 @@ const Profile = () => {
     username,
     dept_id,
   } = formValue;
-  const { user, loading, error } = useSelector((state) => ({ ...state.user }));
+  const { user, userstats, loading, error } = useSelector((state) => ({ ...state.user }));
   const dispatch = useDispatch();
   const { id } = useParams();
   const [isLoading, setIsLoading] = useState(false);
@@ -81,6 +82,7 @@ const Profile = () => {
   useEffect(() => {
     if (id) {
       dispatch(getUserProfile(id));
+      dispatch(getUserStats(id));
     }
   }, [dispatch, id]);
 
@@ -168,13 +170,12 @@ const Profile = () => {
       sx={{
         display: "flex",
         flexDirection: "column",
-        justifyItems: "center",
+        justifyContent: "center",
         alignItems: "center",
         marginTop: "5rem",
         marginBottom: "5rem",
         padding: { xs: "1rem", md: "2rem" },
-        marginRight: { xs: "0rem", md: "20rem" },
-        marginLeft: { xs: "0rem", md: "20rem" },
+        width: "100%", // take full width
       }}
       className="card"
     >
@@ -214,24 +215,153 @@ const Profile = () => {
               }}
             >
               <Typography variant="subtitle1">
-                FULL NAME : {user?.firstname} {user?.middlename}{" "}
+                <span style={{ fontWeight: 800, color: "orange" }}>FULL NAME :</span> {user?.firstname} {user?.middlename}{" "}
                 {user?.lastname}
               </Typography>
               <Typography variant="subtitle1">
-                EMAIL ADDRESS : {user?.email}
+                <span style={{ fontWeight: 800, color: "orange" }}>EMAIL ADDRESS : </span>{user?.email}
               </Typography>
               <Typography variant="subtitle1">
-                USERNAME : {user?.username}
+                <span style={{ fontWeight: 800, color: "orange" }}>USERNAME : </span>{user?.username}
               </Typography>
               <Typography variant="subtitle1">
-                PHONE NUMBER : {user?.phone_no}
+                <span style={{ fontWeight: 800, color: "orange" }}> PHONE NUMBER : </span>{user?.phone_no}
               </Typography>
               <Typography variant="subtitle1">
-                DEPARTMENT : {user?.dept_name}
+                <span style={{ fontWeight: 800, color: "orange" }}>DEPARTMENT : </span>{user?.dept_name}
               </Typography>
             </Box>
           </Grid>
         </Grid>
+        {/* === USER STATS SECTION === */}
+        <Box
+          sx={{
+            mt: 3,
+            mb: 3,
+            width: "100%",
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: "bold",
+              color: "gray",
+              mb: 2,
+              textAlign: "center",
+              letterSpacing: 0.5,
+            }}
+          >
+            Activity Overview
+          </Typography>
+
+          <Grid container spacing={2}>
+            {/* Raised Count */}
+            <Grid item xs={6} md={2.4}>
+              <Box
+                sx={{
+                  borderRadius: 2,
+                  border: "1px solid #f3f3f3",
+                  backgroundColor: "#fff7ed",
+                  boxShadow: 1,
+                  textAlign: "center",
+                  py: 2,
+                }}
+              >
+                <Typography variant="h5" sx={{ fontWeight: "bold", color: "#ea580c" }}>
+                  {userstats?.raisedCount || 0}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#92400e" }}>
+                  Raised
+                </Typography>
+              </Box>
+            </Grid>
+
+            {/* Attended Count */}
+            <Grid item xs={6} md={2.4}>
+              <Box
+                sx={{
+                  borderRadius: 2,
+                  border: "1px solid #f3f3f3",
+                  backgroundColor: "#f0fdf4",
+                  boxShadow: 1,
+                  textAlign: "center",
+                  py: 2,
+                }}
+              >
+                <Typography variant="h5" sx={{ fontWeight: "bold", color: "#16a34a" }}>
+                  {userstats?.attendCount || 0}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#166534" }}>
+                  Attended
+                </Typography>
+              </Box>
+            </Grid>
+
+            {/* Approved */}
+            <Grid item xs={6} md={2.4}>
+              <Box
+                sx={{
+                  borderRadius: 2,
+                  border: "1px solid #f3f3f3",
+                  backgroundColor: "#ecfdf5",
+                  boxShadow: 1,
+                  textAlign: "center",
+                  py: 2,
+                }}
+              >
+                <Typography variant="h5" sx={{ fontWeight: "bold", color: "#10b981" }}>
+                  {userstats?.statusBreakdown?.find((s) => s.status === "Approved")?.count || 0}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#065f46" }}>
+                  Approved
+                </Typography>
+              </Box>
+            </Grid>
+
+            {/* Pending */}
+            <Grid item xs={6} md={2.4}>
+              <Box
+                sx={{
+                  borderRadius: 2,
+                  border: "1px solid #f3f3f3",
+                  backgroundColor: "#fefce8",
+                  boxShadow: 1,
+                  textAlign: "center",
+                  py: 2,
+                }}
+              >
+                <Typography variant="h5" sx={{ fontWeight: "bold", color: "#ca8a04" }}>
+                  {userstats?.statusBreakdown?.find((s) => s.status === "Pending")?.count || 0}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#854d0e" }}>
+                  Pending
+                </Typography>
+              </Box>
+            </Grid>
+
+            {/* Rejected */}
+            <Grid item xs={6} md={2.4}>
+              <Box
+                sx={{
+                  borderRadius: 2,
+                  border: "1px solid #f3f3f3",
+                  backgroundColor: "#fef2f2",
+                  boxShadow: 1,
+                  textAlign: "center",
+                  py: 2,
+                }}
+              >
+                <Typography variant="h5" sx={{ fontWeight: "bold", color: "#dc2626" }}>
+                  {userstats?.statusBreakdown?.find((s) => s.status === "Rejected")?.count || 0}
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#7f1d1d" }}>
+                  Rejected
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
+
 
         <ButtonGroup
           fullWidth
@@ -246,6 +376,25 @@ const Profile = () => {
             {" "}
             Change Password
             <KeyIcon />
+          </Button>
+        </ButtonGroup>
+        <ButtonGroup
+          fullWidth
+          variant="contained"
+          aria-label="outlined primary button group"
+          sx={{ mt: 2, mb: 20 }}
+        >
+          <Button
+            color="error"
+            onClick={() => {
+              localStorage.clear(); 
+              sessionStorage.clear();
+              toast.info("You have been logged out");
+              navigate("/"); // ✅ navigate to sign-in page
+            }}
+            startIcon={<LogoutIcon />} // ✅ nice logout icon
+          >
+            Logout
           </Button>
         </ButtonGroup>
         <SytledModal
