@@ -3,19 +3,28 @@ const sendEmail = require("../utils/sendEmail")
 const { Expo } = require('expo-server-sdk');
 const expo = new Expo();
 
-
 // Create a memo
 exports.creatememo = async (req, res) => {
-  const { fromWho, fromDept, toWho, throughWho, category, subject, content } = req.body;
+  const { 
+    fromWho, 
+    fromDept, 
+    toWho, 
+    throughWho, 
+    category, 
+    subject, 
+    content,
+    confidential 
+  } = req.body;
+
   const currentDate = new Date();
   const status = "Pending";
 
   try {
-    // Insert memo first
+    // Insert memo with confidential status
     const memo = await db.insert(
       `INSERT INTO memos 
-        (date_created, date_updated, department_id, category_id, raised_by, toWho, throughWho, status, subject, content)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        (date_created, date_updated, department_id, category_id, raised_by, toWho, throughWho, status, subject, content, confidential)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
       [
         currentDate.toLocaleString(),
         currentDate.toLocaleString(),
@@ -27,21 +36,21 @@ exports.creatememo = async (req, res) => {
         status,
         subject,
         content,
+        confidential ? 1 : 0,   // store as integer (0 or 1)
       ]
     );
 
     if (!memo) return res.status(400).json({ message: "Failed to create memo" });
 
-    // ✅ Group all user IDs you need to notify
+    // Gather user IDs to notify
     const userIds = [toWho, throughWho].filter(Boolean);
 
-    // ✅ Fetch all users in ONE query
     const users = await db.query(
       "SELECT id, email, expo FROM users WHERE id IN (?)",
       [userIds]
     );
 
-    // ✅ Build and save all notifications in one go (batch insert)
+    // Save notifications
     const notificationValues = userIds.map((uid) => [
       memo,
       uid,
@@ -53,51 +62,56 @@ exports.creatememo = async (req, res) => {
       [notificationValues]
     );
 
-    // ✅ Create email + push promises without awaiting each one (parallel)
+    // Prepare send tasks
     const sendTasks = users.map((user) => {
       const roleLabel = user.id === toWho ? "Recipient" : "Intermediary";
 
-      // --- Email content
       const mailOptions = {
         from: "notify@polarpetrochemicalsltd.com",
         to: user.email,
-        subject: "POMEM - Urgent: New Memo Notification",
+        subject: confidential 
+          ? "🔒 POMEM - Confidential Memo Assigned"
+          : "POMEM - New Memo Notification",
         html: `
           <div style="background-color: red; color: white; padding: 10px; text-align: center;">
             <h1>POMEM</h1>
           </div>
           <p>Hello,</p>
-          <p>This is to notify you that a new memo has been assigned to you as <strong>${roleLabel}</strong>.</p>
+          <p>You have been assigned a new ${confidential ? "<strong>CONFIDENTIAL</strong>" : ""} memo as <strong>${roleLabel}</strong>.</p>
           <p><strong>Subject:</strong> ${subject}</p>
           <p><strong>Memo ID:</strong> ${memo}</p>
           <p>Please log in to POMEM to review and take action.</p>
-          <p>Best Regards,<br>POMEM Notification Service</p>
         `,
       };
 
-      // --- Push notification content
+      // Push notification
       let pushPromise = null;
       if (user.expo && Expo.isExpoPushToken(user.expo)) {
         const message = {
           to: user.expo,
           sound: "pomemgingle.mp3",
-          title: "📄 New Memo Assigned",
-          body: `You have a new memo as ${roleLabel}: "${subject}"`,
-          data: { memo_id: memo },
+          title: confidential 
+            ? "🔒 Confidential Memo Assigned"
+            : "📄 New Memo Assigned",
+          body: confidential
+            ? `A confidential memo has been assigned to you.`
+            : `You have a new memo as ${roleLabel}: "${subject}"`,
+          data: { memo_id: memo, confidential },
         };
 
         const chunks = expo.chunkPushNotifications([message]);
         pushPromise = Promise.all(chunks.map((chunk) => expo.sendPushNotificationsAsync(chunk)));
       }
 
-      // Return parallel tasks
       return Promise.allSettled([sendEmail(mailOptions), pushPromise]);
     });
 
-    // ✅ Run all send operations concurrently
     await Promise.allSettled(sendTasks);
 
-    res.status(201).json({ message: "Memo raised successfully with notifications sent" });
+    res.status(201).json({
+      message: `Memo raised successfully${confidential ? " (Confidential)" : ""} with notifications sent`,
+    });
+
   } catch (error) {
     console.error("❌ Error creating memo:", error);
     res.status(500).json({ message: "Something went wrong" });
@@ -162,12 +176,14 @@ exports.allmemos = async (req, res) => {
 
   page = parseInt(page);
   limit = parseInt(limit);
+  if (isNaN(page) || page < 1) page = 1;
+  if (isNaN(limit) || limit < 1) limit = 24;
   const offset = (page - 1) * limit;
 
   try {
     // Count total memos for pagination
-    const countResult = await db.getall(
-      `SELECT COUNT(*) AS total FROM memos`
+      const countResult = await db.getall(
+      `SELECT COUNT(*) AS total FROM memos WHERE confidential = 0`
     );
 
     const totalMemos = countResult[0].total;
@@ -191,6 +207,7 @@ exports.allmemos = async (req, res) => {
        JOIN departments ON memos.department_id = departments.id
        JOIN categories ON memos.category_id = categories.id
        JOIN users ON memos.raised_by = users.id
+       WHERE memos.confidential = 0
        ORDER BY memos.id DESC
        LIMIT ? OFFSET ?`,
       [limit, offset]
@@ -208,7 +225,6 @@ exports.allmemos = async (req, res) => {
     res.status(500).json({ message: "something went wrong" });
   }
 };
-
 
 // Get memos by search (with pagination)
 exports.allmemosbysearch = async (req, res) => {
@@ -229,7 +245,8 @@ exports.allmemosbysearch = async (req, res) => {
        JOIN departments ON memos.department_id = departments.id
        JOIN categories ON memos.category_id = categories.id
        JOIN users ON memos.raised_by = users.id
-       WHERE memos.subject LIKE ? OR memos.id LIKE ?`,
+       WHERE memos.subject LIKE ? OR memos.id LIKE ?,
+       WHERE memos.confidential = 0`,
       [`%${searchName}%`, `%${searchName}%`]
     );
 
@@ -255,6 +272,7 @@ exports.allmemosbysearch = async (req, res) => {
        JOIN categories ON memos.category_id = categories.id
        JOIN users ON memos.raised_by = users.id
        WHERE memos.subject LIKE ? OR memos.id LIKE ?
+       WHERE memos.confidential = 0
        ORDER BY memos.id DESC
        LIMIT ? OFFSET ?`,
       [`%${searchName}%`, `%${searchName}%`, limit, offset]
@@ -273,12 +291,10 @@ exports.allmemosbysearch = async (req, res) => {
   }
 };
 
-
 //Get all memos by category
 exports.allmemosbycategory = async (req, res) => {
   const { id } = req.params; // category_id
   const { page = 1, limit = 10 } = req.query;
-
   const parsedPage = parseInt(page, 10);
   const parsedLimit = parseInt(limit, 10);
   const offset = (parsedPage - 1) * parsedLimit;
@@ -333,7 +349,6 @@ exports.allmemosbycategory = async (req, res) => {
     res.status(500).json({ message: "something went wrong" });
   }
 };
-
 
 // Get all memos created by a particular user with search + pagination
 exports.allmemosbyuser = async (req, res) => {
@@ -513,9 +528,7 @@ exports.updatememo = async (req, res) => {
     subject,
     content,
   } = req.body;
-
   const currentDate = new Date();
-
   try {
     // Check if the memo exists
     const existingMemo = await db.query("SELECT * FROM memos WHERE id = ?", [
