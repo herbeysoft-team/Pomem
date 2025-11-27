@@ -10,6 +10,7 @@ import {
   Dialog,
   DialogTitle,
   DialogActions,
+  Switch,
 } from "@mui/material";
 import JoditEditor from "jodit-react";
 import { red } from "@mui/material/colors";
@@ -38,6 +39,7 @@ const CreateMemo = () => {
   const [deptId, setDeptId] = useState(null);
   const [name, setName] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
+  const [isConfidential, setIsConfidential] = useState(false);
   const { users, user, loading, error } = useSelector((state) => ({
     ...state.user,
   }));
@@ -114,6 +116,7 @@ const CreateMemo = () => {
             category,
             subject,
             content,
+            confidential: isConfidential,
           },
           navigate,
           toast,
@@ -145,7 +148,7 @@ const CreateMemo = () => {
       }}
       className="card"
     >
-      {isLoading && (
+      {isLoading || loading && (
         <Backdrop
           sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}
           open={loading}
@@ -233,16 +236,16 @@ const CreateMemo = () => {
           </Grid>
         </Grid>
         <TextField
-         sx={{
-          width: "100%",
-          flex: 1,
-          // Always black text and label
-          "& .MuiInputBase-input": { color: "#888 !important" },
-          "& .MuiInputLabel-root": { color: "#888 !important" },
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
-          "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
-          "& .MuiSvgIcon-root": { color: "#888 !important" }, // dropdown arrow
-        }}
+          sx={{
+            width: "100%",
+            flex: 1,
+            // Always black text and label
+            "& .MuiInputBase-input": { color: "#888 !important" },
+            "& .MuiInputLabel-root": { color: "#888 !important" },
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+            "& .MuiSvgIcon-root": { color: "#888 !important" }, // dropdown arrow
+          }}
           id="category"
           select
           name="category"
@@ -259,16 +262,16 @@ const CreateMemo = () => {
           ))}
         </TextField>
         <TextField
-         sx={{
-          width: "100%",
-          flex: 1,
-          // Always black text and label
-          "& .MuiInputBase-input": { color: "#888 !important" },
-          "& .MuiInputLabel-root": { color: "#888 !important" },
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
-          "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
-          "& .MuiSvgIcon-root": { color: "#888 !important" }, // dropdown arrow
-        }}
+          sx={{
+            width: "100%",
+            flex: 1,
+            // Always black text and label
+            "& .MuiInputBase-input": { color: "#888 !important" },
+            "& .MuiInputLabel-root": { color: "#888 !important" },
+            "& .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#888 !important" },
+            "& .MuiSvgIcon-root": { color: "#888 !important" }, // dropdown arrow
+          }}
           id="subject"
           label="Subject of the Memo"
           name="subject"
@@ -315,6 +318,28 @@ const CreateMemo = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      <Box
+        sx={{
+          position: "fixed",
+          top: "10px",
+          right: "20px",
+          background: "#fff",
+          padding: "10px 16px",
+          borderRadius: "30px",
+          boxShadow: "0 4px 6px rgba(83, 81, 81, 0.27)",
+          display: "flex",
+          alignItems: "center",
+          zIndex: 9999,
+        }}
+      >
+
+        <Switch
+          checked={isConfidential}
+          onChange={(e) => setIsConfidential(e.target.checked)}
+          color="error"
+        />
+      </Box>
+
     </Box>
   );
 };

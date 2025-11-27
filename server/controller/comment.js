@@ -33,7 +33,6 @@ exports.createcomment = async (req, res) => {
       [memoId, userId]
     );
     const userIds = userIdsResult.map(u => u.user_id);
-
     if (userIds.length === 0) {
       return res.status(200).json({ message: "Comment added (no other users to notify)" });
     }
@@ -63,7 +62,7 @@ exports.createcomment = async (req, res) => {
           <p>Best Regards,<br>POMEM Notification Service</p>
         `
       };
-
+      console.log(user.expo)
       // Push notification
       let pushPromise = null;
       if (user.expo && Expo.isExpoPushToken(user.expo)) {
